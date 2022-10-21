@@ -23,7 +23,7 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    name: Prepare
+    name: install-prerequisities
     steps:
       - name: Install Pre-requisities
         run: |
@@ -36,6 +36,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build
+    needs: install-prerequisities
     strategy:
       matrix:
         target-arch: [x86_64] #, aarch64]
