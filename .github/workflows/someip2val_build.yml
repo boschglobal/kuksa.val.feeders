@@ -1,0 +1,56 @@
+# /********************************************************************************
+# * Copyright (c) 2022 Contributors to the Eclipse Foundation
+# *
+# * See the NOTICE file(s) distributed with this work for additional
+# * information regarding copyright ownership.
+# *
+# * This program and the accompanying materials are made available under the
+# * terms of the Apache License 2.0 which is available at
+# * http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * SPDX-License-Identifier: Apache-2.0
+# ********************************************************************************/
+
+name: someip2val-build
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/someip2val_build.yml"
+      - "someip2val/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    strategy:
+      matrix:
+        target-arch: [x86_64, aarch64]
+      fail-fast: true
+
+    steps:
+      - name: Install Pre-requisities
+        run: |
+          apt-get update && apt-get install -y cmake g++ build-essential \
+              g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+              jq python3 python3-pip &&
+          pip3 install conan
+
+      # - name: Adding github workspace as safe directory
+      #   run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - uses: actions/checkout@v3
+
+      - name: Run build
+        working-directory: ${{github.workspace}}/someip2val
+        run: ./build-release.sh ${{ matrix.target-arch }}
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: someip2val-release-${{ matrix.target-arch }}
+          path: |
+            ${{github.workspace}}/someip2val/target/${{ matrix.target-arch }}/release/install/bin
+            ${{github.workspace}}/someip2val/target/${{ matrix.target-arch }}/release/install/lib/libvsomeip*.so*
+          if-no-files-found: error
