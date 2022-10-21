@@ -26,34 +26,25 @@ jobs:
     name: Build
     strategy:
       matrix:
-        target-arch: [x86_64] #, aarch64]
+        target-arch: [x86_64, aarch64]
       fail-fast: true
 
     steps:
       - name: Install Pre-requisities
         run: |
-          sudo apt-get update && \
-          sudo apt-get install -y cmake g++ build-essential \
+          sudo apt-get update -qqy && \
+          sudo apt-get install -qqy --no-install-recommends \
+              cmake g++ build-essential \
               g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
               jq python3 python3-pip &&
           pip3 install conan
 
-      # - name: Adding github workspace as safe directory
-      #   run: git config --global --add safe.directory $GITHUB_WORKSPACE
-
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Run build
         working-directory: ${{github.workspace}}/someip2val
         run: ./build-release.sh ${{ matrix.target-arch }}
-
-      - name: Upload dist
-        uses: actions/upload-artifact@v3
-        with:
-          name: someip2val_${{ matrix.target-arch }}_release.tar.gz
-          path: |
-            ${{github.workspace}}/someip2val/someip2val_${{ matrix.target-arch }}_release.tar.gz
-          if-no-files-found: error
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
