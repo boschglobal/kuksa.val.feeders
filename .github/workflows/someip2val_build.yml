@@ -26,7 +26,7 @@ jobs:
     name: Build
     strategy:
       matrix:
-        target-arch: [x86_64, aarch64]
+        target-arch: [x86_64] #, aarch64]
       fail-fast: true
 
     steps:
@@ -50,8 +50,8 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
-          name: someip2val-release-${{ matrix.target-arch }}
+          name: someip2val_${{ matrix.target-arch }}_release
           path: |
             ${{github.workspace}}/someip2val/target/${{ matrix.target-arch }}/release/install/bin
-            ${{github.workspace}}/someip2val/target/${{ matrix.target-arch }}/release/install/lib/libvsomeip*.so*
+            ${{github.workspace}}/someip2val/target/${{ matrix.target-arch }}/release/install/lib/libvsomeip*.so.3
           if-no-files-found: error
