@@ -36,7 +36,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Build
-    needs: install-prerequisities
+    needs: prepare
     strategy:
       matrix:
         target-arch: [x86_64] #, aarch64]
