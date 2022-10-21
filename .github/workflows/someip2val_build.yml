@@ -21,9 +21,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  prepare:
+  build:
     runs-on: ubuntu-latest
-    name: install-prerequisities
+    name: Build
+    strategy:
+      matrix:
+        target-arch: [x86_64] #, aarch64]
+      fail-fast: true
+
     steps:
       - name: Install Pre-requisities
         run: |
@@ -32,24 +37,6 @@ jobs:
               g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
               jq python3 python3-pip &&
           pip3 install conan
-
-  build:
-    runs-on: ubuntu-latest
-    name: Build
-    needs: prepare
-    strategy:
-      matrix:
-        target-arch: [x86_64] #, aarch64]
-      fail-fast: true
-
-    steps:
-      # - name: Install Pre-requisities
-      #   run: |
-      #     sudo apt-get update && \
-      #     sudo apt-get install -y cmake g++ build-essential \
-      #         g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-      #         jq python3 python3-pip &&
-      #     pip3 install conan
 
       # - name: Adding github workspace as safe directory
       #   run: git config --global --add safe.directory $GITHUB_WORKSPACE
