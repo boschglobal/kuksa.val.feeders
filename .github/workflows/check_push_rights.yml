@@ -36,9 +36,10 @@ jobs:
     - name: check token permissions
       id: token-permissions
       run: |
-        SCOPES=$(curl -sS -f -I -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com | grep "x-oauth-scopes:")
-        echo "GITHUB_TOKEN: $SCOPES"
-        echo "GITHUB_TOKEN_SCOPE=$SCOPES" >> GITHUB_OUTPUT
+        curl -sS -f -I -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com
+        #SCOPES=$(curl -sS -f -I -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com | grep "x-oauth-scopes:")
+        #echo "GITHUB_TOKEN: $SCOPES"
+        #echo "GITHUB_TOKEN_SCOPE=$SCOPES" >> GITHUB_OUTPUT
 
     # Check we have access to secrets. Forks do not
     - name: check for secrets needed to push
