@@ -20,9 +20,9 @@ on:
       have_secrets:
         description: "In possession of ghcr.io tokens?"
         value: ${{ jobs.check_push_rights.outputs.have_secrets }}
-    token_scope:
-        description: "github token scope"
-        value: ${{ jobs.token-permissions.outputs.token_scope }}
+    # token_scope:
+    #     description: "github token scope"
+    #     value: ${{ jobs.token-permissions.outputs.token_scope }}
 
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       have_secrets: ${{ steps.check-secrets.outputs.have_secrets }}
-      token_scope: ${{ steps.token-permissions.outputs.token_scope }}
+      # token_scope: ${{ steps.token-permissions.outputs.token_scope }}
 
     steps:
     - name: check token permissions
