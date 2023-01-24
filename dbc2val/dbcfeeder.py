@@ -102,7 +102,7 @@ class Feeder:
         self._provider = None
         self._connected = False
         self._registered = False
-        self._can_queue = queue.Queue()
+        self._can_queue : Queue[dbc2vssmapper.VSSObservation] = queue.Queue()
         self._server_type = server_type
         self._kuksa_client_config = kuksa_client_config
         self._exit_stack = contextlib.ExitStack()
@@ -202,12 +202,13 @@ class Feeder:
 
     def _register_datapoints(self):
         log.info("Register datapoints")
-        for entry in self._mapper.mapping:
-            for target_name, target_attr in self._mapper.mapping[entry]["targets"].items():
+        for entry in self._mapper.mapping.values():
+            for vss_mapping in entry:
+                #for target_name, target_attr in self._mapper.mapping[entry]["targets"].items():
                 self._provider.register(
-                    target_name,
-                    target_attr["vss"]["datatype"].upper(),
-                    target_attr["vss"]["description"],
+                    vss_mapping.vss_name,
+                    vss_mapping.datatype.upper(),
+                    vss_mapping.description,
                 )
 
     def _run(self):
@@ -230,8 +231,9 @@ class Feeder:
                         log.error("Failed to register datapoints", exc_info=True)
                         continue
             try:
-                can_signal, can_value = self._can_queue.get(timeout=1)
-                for target in self._mapper[can_signal]["targets"]:
+                vss_observation = self._can_queue.get(timeout=1)
+                TODO - Find rigfht VSS signal and redo mapping
+                for target in self._mapper[vss_observation.dbc_name]["targets"]:
                     value = self._mapper.transform(can_signal, target, can_value)
                     if value != can_value:
                         log.debug(

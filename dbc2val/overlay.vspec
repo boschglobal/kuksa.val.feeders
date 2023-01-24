@@ -1,0 +1,10 @@
+# For now only handling speed
+
+# Type and datatype required, others will be inherited
+# No type for this one, so will use 1:1 mapping
+Vehicle.Speed:
+  type: sensor
+  datatype: float
+  dbc:
+    signal: DI_uiSpeed
+    interval_ms: 100

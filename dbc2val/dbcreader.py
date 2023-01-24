@@ -23,6 +23,7 @@ import cantools
 import threading
 import time
 import logging
+import dbc2vssmapper
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class DBCReader:
         for entry in self.mapper.map():
             canid = self.get_canid_for_signal(entry[0])
             if canid is not None and canid not in wl:
+                print(f"Adding {entry[0]} to white list, canid is {canid}")
                 wl.append(canid)
         return wl
 
@@ -98,9 +100,13 @@ class DBCReader:
                 rxTime = time.time()
                 for k, v in decode.items():
                     if k in self.mapper:
-                        if self.mapper.minUpdateTimeElapsed(k, rxTime):
-                            log.debug("* Handling Singal:{}, Value:{}".format(k, v))
-                            self.queue.put((k, v))
+                        # Now time is defined per VSS signal, so handling needs to be different
+                        print(f"Found {k} with value {v} of type {type(v)}, is {type(self.mapper[k])}")
+                        for signal in self.mapper[k]:
+                            print(f"Found definition for {signal.vss_name}")
+                            if signal.interval_exceeded(rxTime):
+                                log.debug("* Handling Signal:{}, Value:{}".format(k, v))
+                            self.queue.put(dbc2vssmapper.VSSObservation(signal.vss_name, k, v))
         log.info("Stopped Rx thread")
 
     def stop(self):
