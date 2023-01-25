@@ -64,7 +64,7 @@ class DBCReader:
         for entry in self.mapper.map():
             canid = self.get_canid_for_signal(entry[0])
             if canid is not None and canid not in wl:
-                print(f"Adding {entry[0]} to white list, canid is {canid}")
+                log.info(f"Adding {entry[0]} to white list, canid is {canid}")
                 wl.append(canid)
         return wl
 
@@ -73,7 +73,7 @@ class DBCReader:
             for signal in msg.signals:
                 if signal.name == sig_to_find:
                     id = msg.frame_id
-                    log.info(
+                    log.debug(
                         "Found signal in DBC file {} in CAN frame id 0x{:02x}".format(
                             signal.name, id
                         )
@@ -101,12 +101,14 @@ class DBCReader:
                 for k, v in decode.items():
                     if k in self.mapper:
                         # Now time is defined per VSS signal, so handling needs to be different
-                        print(f"Found {k} with value {v} of type {type(v)}, is {type(self.mapper[k])}")
+                        #print(f"Found {k} with value {v} of type {type(v)}, is {type(self.mapper[k])}")
                         for signal in self.mapper[k]:
-                            print(f"Found definition for {signal.vss_name}")
+                            #print(f"Found definition for {signal.vss_name}")
                             if signal.interval_exceeded(rxTime):
-                                log.debug("* Handling Signal:{}, Value:{}".format(k, v))
-                            self.queue.put(dbc2vssmapper.VSSObservation(signal.vss_name, k, v))
+                                log.debug(f"Queueing {signal.vss_name}, triggered by {k}, raw value {v} ")
+                                self.queue.put(dbc2vssmapper.VSSObservation(k, signal.vss_name, v))
+                            else:
+                                log.debug(f"Ignoring {signal.vss_name}, triggered by {k}, raw value {v} ")
         log.info("Stopped Rx thread")
 
     def stop(self):

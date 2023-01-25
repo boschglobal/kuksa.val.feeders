@@ -1,10 +1,36 @@
-# For now only handling speed
 
 # Type and datatype required, others will be inherited
+
 # No type for this one, so will use 1:1 mapping
 Vehicle.Speed:
   type: sensor
   datatype: float
   dbc:
     signal: DI_uiSpeed
-    interval_ms: 100
+    interval_ms: 5000
+    
+Vehicle.OBD.EngineLoad:
+  type: sensor
+  datatype: float
+  dbc:
+    signal: RearPower266
+    interval_ms: 4000
+    transform:
+      math: "floor(abs(x/5))"
+      
+
+Vehicle.Powertrain.Transmission.CurrentGear:
+  type: sensor
+  datatype: int8
+  dbc:
+    signal: DI_gear
+    transform:
+       mapping:
+        - from: DI_GEAR_D
+          to: 1
+        - from: DI_GEAR_P
+          to: 0
+        - from: DI_GEAR_INVALID
+          to: 0
+        - from: DI_GEAR_R
+          to: -1

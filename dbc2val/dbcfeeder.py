@@ -102,7 +102,7 @@ class Feeder:
         self._provider = None
         self._connected = False
         self._registered = False
-        self._can_queue : Queue[dbc2vssmapper.VSSObservation] = queue.Queue()
+        self._can_queue : queue.Queue[dbc2vssmapper.VSSObservation] = queue.Queue()
         self._server_type = server_type
         self._kuksa_client_config = kuksa_client_config
         self._exit_stack = contextlib.ExitStack()
@@ -232,37 +232,30 @@ class Feeder:
                         continue
             try:
                 vss_observation = self._can_queue.get(timeout=1)
-                TODO - Find rigfht VSS signal and redo mapping
-                for target in self._mapper[vss_observation.dbc_name]["targets"]:
-                    value = self._mapper.transform(can_signal, target, can_value)
-                    if value != can_value:
-                        log.debug(
-                            "  transform({}, {}, {}) -> {}".format(
-                                can_signal, target, can_value, value
-                            )
-                        )
-                    # None indicates the transform decided to not set the value
-                    if value is None:
-                        log.warning(
-                            "failed to transform({}, {}, {})".format(
-                                can_signal, target, can_value
-                            )
-                        )
-                    else:
-                        # get values out of the canreplay and map to desired signals
-                        log.debug("Updating DataPoint(%s, %s)", target, value)
-                        if self._server_type is ServerType.KUKSA_DATABROKER:
-                            self._provider.update_datapoint(target, value)
-                        elif self._server_type is ServerType.KUKSA_VAL_SERVER:
-                            resp=json.loads(kuksa.setValue(target, str(value)))
-                            if "error" in resp:
-                                if "message" in resp["error"]:
-                                   log.error("Error setting {}: {}".format(target, resp["error"]["message"]))
-                                else:
-                                   log.error("Unknown error setting {}: {}".format(target, resp))
+                for vss_signal in self._mapper[vss_observation.dbc_name]:
+                    if vss_signal.vss_name == vss_observation.vss_name:
+                        #print(f"Match for {vss_signal.vss_name}, observation of type {type(vss_observation.value)}")
+                        value = vss_signal.transform_value(vss_observation.value)
+                        log.debug(f"Transformed dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {vss_observation.value} to {value}")
+                        # None indicates the transform decided to not set the value
+                        if value is None:
+                            log.warning(f"Value ignored for  dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {value} of type {type(value)}")
                         else:
-                            log.error("Unsupported server type: %s", server_type)
-
+                            # get values out of the canreplay and map to desired signals
+                            target = vss_observation.vss_name
+                            log.debug("Updating DataPoint(%s, %s)", target, value)
+                            if self._server_type is ServerType.KUKSA_DATABROKER:
+                                self._provider.update_datapoint(target, value)
+                            elif self._server_type is ServerType.KUKSA_VAL_SERVER:
+                                resp=json.loads(kuksa.setValue(target, str(value)))
+                                if "error" in resp:
+                                    if "message" in resp["error"]:
+                                       log.error("Error setting {}: {}".format(target, resp["error"]["message"]))
+                                    else:
+                                       log.error("Unknown error setting {}: {}".format(target, resp))
+                            else:
+                                log.error("Unsupported server type: %s", server_type)
+                        break
             except kuksa_client.grpc.VSSClientError:
                 log.error("Failed to update datapoints", exc_info=True)
             except queue.Empty:

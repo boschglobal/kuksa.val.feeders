@@ -4666,6 +4666,24 @@
             "children": {
               "Angle": {
                 "datatype": "int16",
+                "dbc": {
+                  "$file_name$": "Chassis/Chassis.vspec",
+                  "$line$": 129,
+                  "changetype": "ON_CHANGE",
+                  "interval_ms": 100,
+                  "signal": "SteeringAngle129",
+                  "transform": {
+                    "$file_name$": "Chassis/Chassis.vspec",
+                    "$line$": 131,
+                    "mapping": [
+                      {
+                        "$file_name$": "Chassis/Chassis.vspec",
+                        "$line$": 133,
+                        "math": "floor(x+0.5)"
+                      }
+                    ]
+                  }
+                },
                 "description": "Steering wheel angle. Positive = degrees to the left. Negative = degrees to the right.",
                 "type": "sensor",
                 "unit": "degrees"
@@ -5206,20 +5224,20 @@
           },
           "EngineLoad": {
             "datatype": "float",
+            "dbc": {
+              "$file_name$": "overlay.vspec",
+              "$line$": 15,
+              "interval_ms": 4000,
+              "signal": "RearPower266",
+              "transform": {
+                "$file_name$": "overlay.vspec",
+                "$line$": 18,
+                "math": "floor(abs(x/5))"
+              }
+            },
             "description": "PID 04 - Engine load in percent - 0 = no load, 100 = full load",
             "type": "sensor",
-            "unit": "percent",
-            "dbc": {
-                  "interval_ms": 100,
-                  "signal": "RearPower266",
-                  "transform": {
-                    "mapping": [
-                      {
-                        "math": "floor(abs(x/5))"
-                      }
-                    ]
-                    }
-                  }
+            "unit": "percent"
           },
           "EngineSpeed": {
             "datatype": "float",
@@ -6759,31 +6777,43 @@
               },
               "CurrentGear": {
                 "datatype": "int8",
-                "description": "The current gear. 0=Neutral, 1/2/..=Forward, -1/-2/..=Reverse.",
-                "type": "sensor",
                 "dbc": {
-                          "signal": "DI_gear",
-                          "transform": {
-                            "mapping": [
-                              {
-                                "from": "DI_GEAR_D",
-                                "to": 1
-                              },
-                              {
-                                "from": "DI_GEAR_INVALID",
-                                "to": 0
-                              },
-                              {
-                                "from": "DI_GEAR_P",
-                                "to": 0
-                              },
-                              {
-                                "from": "DI_GEAR_R",
-                                "to": -1
-                              }
-                            ]
-                          }
-                        }
+                  "$file_name$": "overlay.vspec",
+                  "$line$": 25,
+                  "signal": "DI_gear",
+                  "transform": {
+                    "$file_name$": "overlay.vspec",
+                    "$line$": 27,
+                    "mapping": [
+                      {
+                        "$file_name$": "overlay.vspec",
+                        "$line$": 29,
+                        "from": "DI_GEAR_D",
+                        "to": 1
+                      },
+                      {
+                        "$file_name$": "overlay.vspec",
+                        "$line$": 31,
+                        "from": "DI_GEAR_P",
+                        "to": 0
+                      },
+                      {
+                        "$file_name$": "overlay.vspec",
+                        "$line$": 33,
+                        "from": "DI_GEAR_INVALID",
+                        "to": 0
+                      },
+                      {
+                        "$file_name$": "overlay.vspec",
+                        "$line$": 35,
+                        "from": "DI_GEAR_R",
+                        "to": -1
+                      }
+                    ]
+                  }
+                },
+                "description": "The current gear. 0=Neutral, 1/2/..=Forward, -1/-2/..=Reverse.",
+                "type": "sensor"
               },
               "DiffLockFrontEngagement": {
                 "datatype": "float",
@@ -6947,9 +6977,10 @@
       "Speed": {
         "datatype": "float",
         "dbc": {
-                  "interval_ms": 100,
-                  "signal": "DI_uiSpeed",
-                  "_comment": "No explicit transform, that is OK"
+          "$file_name$": "overlay.vspec",
+          "$line$": 8,
+          "interval_ms": 5000,
+          "signal": "DI_uiSpeed"
         },
         "description": "Vehicle speed.",
         "type": "sensor",
