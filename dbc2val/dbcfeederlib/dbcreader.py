@@ -23,7 +23,7 @@ import cantools
 import threading
 import time
 import logging
-import dbc2vssmapper
+from dbcfeederlib import dbc2vssmapper
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class DBCReader:
         :param int bitrate:
             Bitrate in bit/s.
         """
-        self.bus = can.interface.Bus(*args, **kwargs)
+        self.bus = can.interface.Bus(*args, **kwargs) # pylint: disable=abstract-class-instantiated
         rxThread = threading.Thread(target=self.rxWorker)
         rxThread.start()
 
@@ -106,7 +106,7 @@ class DBCReader:
                             #print(f"Found definition for {signal.vss_name}")
                             if signal.interval_exceeded(rxTime):
                                 log.debug(f"Queueing {signal.vss_name}, triggered by {k}, raw value {v} ")
-                                self.queue.put(dbc2vssmapper.VSSObservation(k, signal.vss_name, v))
+                                self.queue.put(dbc2vssmapper.VSSObservation(k, signal.vss_name, v, rxTime))
                             else:
                                 log.debug(f"Ignoring {signal.vss_name}, triggered by {k}, raw value {v} ")
         log.info("Stopped Rx thread")

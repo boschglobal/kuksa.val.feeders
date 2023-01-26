@@ -32,15 +32,15 @@ from signal import SIGINT, SIGTERM, signal
 from typing import Any
 from typing import Dict
 
-import canplayer
-import dbc2vssmapper
-import dbcreader
+from dbcfeederlib import canplayer
+from dbcfeederlib import dbc2vssmapper
+from dbcfeederlib import dbcreader
 import grpc
-import j1939reader
+from dbcfeederlib import j1939reader
 
 from kuksa_client import KuksaClientThread
 import kuksa_client.grpc
-import databroker
+from dbcfeederlib import databroker
 
 
 log = logging.getLogger("dbcfeeder")
@@ -235,7 +235,7 @@ class Feeder:
                 for vss_signal in self._mapper[vss_observation.dbc_name]:
                     if vss_signal.vss_name == vss_observation.vss_name:
                         #print(f"Match for {vss_signal.vss_name}, observation of type {type(vss_observation.value)}")
-                        value = vss_signal.transform_value(vss_observation.value)
+                        value = vss_signal.transform_value(vss_observation.value, vss_observation.time)
                         log.debug(f"Transformed dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {vss_observation.value} to {value}")
                         # None indicates the transform decided to not set the value
                         if value is None:
@@ -254,7 +254,7 @@ class Feeder:
                                     else:
                                        log.error("Unknown error setting {}: {}".format(target, resp))
                             else:
-                                log.error("Unsupported server type: %s", server_type)
+                                log.error(f"Unsupported server type: {self._server_type}")
                         break
             except kuksa_client.grpc.VSSClientError:
                 log.error("Failed to update datapoints", exc_info=True)

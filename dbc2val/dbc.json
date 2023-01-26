@@ -4666,24 +4666,6 @@
             "children": {
               "Angle": {
                 "datatype": "int16",
-                "dbc": {
-                  "$file_name$": "Chassis/Chassis.vspec",
-                  "$line$": 129,
-                  "changetype": "ON_CHANGE",
-                  "interval_ms": 100,
-                  "signal": "SteeringAngle129",
-                  "transform": {
-                    "$file_name$": "Chassis/Chassis.vspec",
-                    "$line$": 131,
-                    "mapping": [
-                      {
-                        "$file_name$": "Chassis/Chassis.vspec",
-                        "$line$": 133,
-                        "math": "floor(x+0.5)"
-                      }
-                    ]
-                  }
-                },
                 "description": "Steering wheel angle. Positive = degrees to the left. Negative = degrees to the right.",
                 "type": "sensor",
                 "unit": "degrees"

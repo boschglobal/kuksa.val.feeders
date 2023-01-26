@@ -12,6 +12,13 @@ Generate a json file with annotations - like this if using VSS github repo
 
 Supported scope visible in examples in [overlay.vspec](overlay.vspec)
 
+# Design decisons
+
+* By default log warnings only
+* On info level log short information on every signal sent to kuksa.val
+* Keep config file large/complete with short intervals
+* Add on_change functionality
+
 ## Remaining work and Open Points
 
 * What is our ambition with the default config? Would it be reasonable to change update interval to something slower to be able to follow printouts
