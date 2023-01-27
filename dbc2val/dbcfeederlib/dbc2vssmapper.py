@@ -18,32 +18,42 @@
 # SPDX-License-Identifier: Apache-2.0
 ########################################################################
 
+"""
+Classes for maintaining mapping between dbc and VSS
+as well as transforming dbc data to VSS data.
+"""
 
-#import yaml
-import json 
+import json
 import logging
 import sys
 from typing import Any
+from dataclasses import dataclass
+
 from py_expression_eval import Parser
 
 log = logging.getLogger(__name__)
 
-
+@dataclass
 class VSSObservation:
-    """A mapping for a VSS signal"""
+    """
+    A VSSObservation is a container for a single observation/data for a single VSS signal.
+    The data contained is the raw data as received on CAN, it has not yet been transformed
+    into VSS representation.
+    """
 
-    def __init__(self, dbc_name : str, vss_name : str, value : Any, time : float):
-        self.dbc_name = dbc_name
-        self.vss_name = vss_name
-        self.value = value
-        self.time = time
-        
+    dbc_name : str
+    vss_name : str
+    raw_value : Any
+    time : float
+
 
 class VSSMapping:
+    """A mapping for a VSS signal"""
 
     parser : Parser = Parser()
 
-    def __init__(self, vss_name : str, transform :dict, interval_ms : int, on_change : bool, datatype: str, description : str):
+    def __init__(self, vss_name : str, transform :dict, interval_ms : int,
+                 on_change : bool, datatype: str, description : str):
         self.vss_name = vss_name
         self.transform = transform
         self.interval_ms = interval_ms
@@ -51,78 +61,112 @@ class VSSMapping:
         self.datatype = datatype
         self.description = description
         self.lastupdate_s : float = 0.0
-        # Value stored only for logging purposes
-        self.last_value : Any = None
-        
-    # returns true if element can be updated
-    def interval_exceeded(self, time : float):
-        diff_ms =( time - self.lastupdate_s) * 1000.0
-        #print(f"For {self.vss_name} Comparing {type(diff_ms)} with {self.interval_ms} of type {type(self.interval_ms)}")
-        if diff_ms >= self.interval_ms:
-            # Interval updated first if value actually can be transformed and change condition considered
-            #self.lastupdate_s = time
-            log.debug(f"interval_exceeded for {self.vss_name}. Time is {time}")
-            return True
-        return False
-        
-    # Check whether there are transforms defined to map DBC signal "signal" to
-    # VSS path "target". Returns the (potentially) transformed values
-    # For now assumed that both value and transformed value can be of any type
-    # e.g. string, int, float, bool
-    # (That shall better be tested/investigated later - what types can value actually have?)
-    def transform_value(self, value : Any, time : float) -> Any:
-    
-        if self.transform == None:
+        # raw value (before transformation) stored for "on_change" condition evaluation.
+        self.last_raw_value : Any = None
+
+    def condition_fulfilled(self, time : float, value : Any) -> bool:
+        """
+        Checks if condition to send signal are fulfilled
+        Currently and "and" condition, consisting of possibly both time and value condition
+        """
+        do_send = True
+
+        if self.interval_ms > 0:
+            diff_ms =( time - self.lastupdate_s) * 1000.0
+            if diff_ms < self.interval_ms:
+                log.debug(f"Interval not exceeded for {self.vss_name}. Time is {time}")
+                do_send = False
+
+        if (do_send and self.on_change):
+            do_send = self.last_raw_value != value
+
+        if (not do_send) and (self.last_raw_value is None):
+            # Always send first time signal is seen
+            do_send = True
+
+        if do_send:
+            self.lastupdate_s = time
+            self.last_raw_value = value
+
+        return do_send
+
+    def transform_value(self, value : Any) -> Any:
+        """
+        Transforms the given "raw" value to the wanted VSS value.
+        For now does not make any type checks
+        """
+        transformed_value = None
+        if self.transform is None:
             log.debug(f"No mapping to VSS {self.vss_name}, using raw value {value}")
             transformed_value = value
         else:
-            #print(f"Transform of type {type(self.transform)}")
-            # It is supposed that "verify_transform" already have checked that we have a valid transform, so no need to check it here
+            # It is supposed that "verify_transform" already have checked that
+            # we have a valid transform, so no need to check it here
             if "mapping" in self.transform:
                 tmp = self.transform["mapping"]
-                #print(f"Found mapping {tmp} of type {type(tmp)}")
                 # Assumed to be a list
                 for item in tmp:
                     from_val = item["from"]
-                    #print(f"Comparing {from_val} with {value}")
                     if from_val == value:
-                         #print(f"Match")
-                         new_val = item["to"]
-                         transformed_value = new_val
-                         break
+                        new_val = item["to"]
+                        transformed_value = new_val
+                        break
             else:
                 tmp = self.transform["math"]
-                #print(f"Found math {tmp} of type {type(tmp)}")
-                transformed_value = VSSMapping.parser.parse(tmp).evaluate({"x": value})
-                #print(f"Transformed to {transformed_value} of type {type(transformed_value)}")
+                try:
+                    transformed_value = VSSMapping.parser.parse(tmp).evaluate({"x": value})
+                except Exception:
+                    # It is assumed that you may consider it ok that transformation fails sometimes,
+                    # so giving warning instead of error
+                    # This could be e.g. trying to treat a string as int
+                    log.warning(f"Transformation failed for value {value} "
+                                f"for VSS signal {self.vss_name}, signal ignored!", exc_info=True)
 
-        if transformed_value == None:
-            log.info(f"No mapping to VSS {self.vss_name} found for raw value {value}, returning None to indicate that it shall be ignored!")
+        if transformed_value is None:
+            log.info(f"No mapping to VSS {self.vss_name} found for raw value {value},"
+                     f"returning None to indicate that it shall be ignored!")
         else:
-            if self.on_change and (value == self.last_value):
-                return None
-            self.lastupdate_s = time
-            if transformed_value != self.last_value:
-                log.info(f"New value {value} for {self.vss_name}")
-                self.last_value = transformed_value
+            log.info(f"New value {transformed_value} for {self.vss_name}")
         return transformed_value
-        
-        
-class mapper:
+
+
+class Mapper:
+    """
+    The mapper class contain all mappings between dbc and vss.
+    It also contain functionality for transforming data
+    """
 
     # Where we keep mapping, key is dbc signal name
     mapping : dict[str, list[VSSMapping]] = {}
 
+    def transform_value(self, vss_observation : VSSObservation) -> Any:
+        """
+        Find mapping and transform value. Return None if no matching mapping found.
+        """
+        # If we have an observation we know that a mapping exists
+        for vss_signal in self.mapping[vss_observation.dbc_name]:
+            if vss_signal.vss_name == vss_observation.vss_name:
+                value = vss_signal.transform_value(vss_observation.raw_value)
+                log.debug(f"Transformed dbc {vss_observation.dbc_name} to VSS "
+                          f"{vss_observation.vss_name}, "
+                          f"from raw value {vss_observation.raw_value} to {value}")
+                return value
+
+        # Shall never be reached
+        return None
+
     def verify_transform(self, expanded_name : str , node : dict):
+        """
+        Extracts transformation and checks it seems to be correct
+        """
         if not "transform" in node:
             log.debug(f"No transformation found for {expanded_name}")
             # For now assumed that None is Ok
             return None
         transform = node["transform"]
-        #print(f"Transform type {type(transform)}")
-        
+
         has_mapping = False
-        
+
         if not isinstance(transform, dict):
             log.error(f"Transform not dict for {expanded_name}")
             sys.exit(-1)
@@ -131,13 +175,12 @@ class mapper:
             if not isinstance(tmp, list):
                 log.error(f"Transform mapping not list for {expanded_name}")
                 sys.exit(-1)
-            #print(f"Found mapping {tmp} of type {type(tmp)}")
             for item in tmp:
                 if not (("from" in item) and ("to" in item)):
                     log.error(f"Mapping missing to and from in {item} for {expanded_name}")
                     sys.exit(-1)
             has_mapping = True
-            
+
         if "math" in transform:
             if has_mapping:
                 log.error(f"Can not have both mapping and math for {expanded_name}")
@@ -146,89 +189,98 @@ class mapper:
                 log.error(f"Math must be str for {expanded_name}")
                 sys.exit(-1)
         return transform
-        
-    def analyze_signal(self,expanded_name, node):
-        #print(f"About to handle {expanded_name}")
+
+    def analyze_signal(self, expanded_name, node):
+        """
+        Analyzes a signal and add mapping entry if correct mapping found
+        """
         if "dbc" in node:
-          log.info(f"Signal {expanded_name} has dbc!")
-          dbc_def = node["dbc"]
-          # For now expect that only "signal" must exist
-          # For now we do not check transform syntax here - should better be done
-          transform = self.verify_transform(expanded_name, dbc_def)
-          dbc_name = dbc_def.get("signal", "")
-          if dbc_name == "":
-            log.error(f"No dbc signal found for {expanded_name}")
-            sys.exit(-1)
-          on_change : bool = False
-          if "on_change" in dbc_def:
-             tmp = dbc_def["on_change"]
-             if isinstance(tmp,bool):
-                 on_change = tmp
-             else:
-                  log.error(f"Value for on_change ({tmp}) is not bool")
-                  sys.exit(-1)
-          if "interval_ms" in dbc_def:
-              interval = dbc_def["interval_ms"]
-              if not isinstance(interval,int):
-                  log.error(f"Faulty interval for {expanded_name}")
-                  sys.exit(-1)
-          else:
-              if on_change:
-                  log.info(f"Using default interval 0 ms for {expanded_name} as it has on_change condition")
-                  interval = 0
-              else:
-                  log.info(f"Using default interval 1000 ms for {expanded_name}")
-                  interval = 1000
-          mapping_entry = VSSMapping(expanded_name, transform, interval, on_change, node["datatype"], node["description"])
-          if not dbc_name in self.mapping:
-              self.mapping[dbc_name] = []
-          self.mapping[dbc_name].append(mapping_entry)
-    
-    def traverse_vss_node(self,name, node,prefix = ""):
-        #print(f"Working with node of type {type(node)}")
-        
-        # Identify if it is a VSS node
+            log.info(f"Signal {expanded_name} has dbc!")
+            dbc_def = node["dbc"]
+            transform = self.verify_transform(expanded_name, dbc_def)
+            dbc_name = dbc_def.get("signal", "")
+            if dbc_name == "":
+                log.error(f"No dbc signal found for {expanded_name}")
+                sys.exit(-1)
+            on_change : bool = False
+            if "on_change" in dbc_def:
+                tmp = dbc_def["on_change"]
+                if isinstance(tmp,bool):
+                    on_change = tmp
+                else:
+                    log.error(f"Value for on_change ({tmp}) is not bool")
+                    sys.exit(-1)
+            if "interval_ms" in dbc_def:
+                interval = dbc_def["interval_ms"]
+                if not isinstance(interval,int):
+                    log.error(f"Faulty interval for {expanded_name}")
+                    sys.exit(-1)
+            else:
+                if on_change:
+                    log.info(f"Using default interval 0 ms for {expanded_name} "
+                             f"as it has on_change condition")
+                    interval = 0
+                else:
+                    log.info(f"Using default interval 1000 ms for {expanded_name}")
+                    interval = 1000
+            mapping_entry = VSSMapping(expanded_name, transform, interval, on_change,
+                                       node["datatype"], node["description"])
+            if not dbc_name in self.mapping:
+                self.mapping[dbc_name] = []
+            self.mapping[dbc_name].append(mapping_entry)
+
+    def traverse_vss_node(self,name, node, prefix = ""):
+        """
+        Traverse a vss node/tree and order all found VSS signals to be analyzed
+        so that mapping can be extracted
+        """
         is_signal = False
         is_branch = False
         expanded_name = ""
         if isinstance(node,dict):
-           if "type" in node:
-               if node["type"] in ["sensor","actuator", "attribute"]:
-                   node_type = node["type"];
-                   #print(f"Found VSS node {name} of type {node_type}")
-                   is_signal = True
-               elif node["type"] in ["branch"]:
-                   node_type = node["type"];
-                   #print(f"Found VSS node  {name}  of type {node_type}")
-                   is_branch = True
-                   prefix = prefix + name + "."
-                   
-        #            
+            if "type" in node:
+                if node["type"] in ["sensor","actuator", "attribute"]:
+                    is_signal = True
+                elif node["type"] in ["branch"]:
+                    is_branch = True
+                    prefix = prefix + name + "."
+
         # Assuming it to be a dict
-        if is_branch:      
+        if is_branch:
             for item in node["children"].items():
                 self.traverse_vss_node(item[0],item[1],prefix)
         elif is_signal:
-            #print(f"Signal, so not iterating more")
             expanded_name = prefix + name
             self.analyze_signal(expanded_name, node)
-        elif isinstance(node,dict):    
+        elif isinstance(node,dict):
             for item in node.items():
                 self.traverse_vss_node(item[0],item[1],prefix)
-        #else:
-            #print(f"Was something else {node}")
 
-    def __init__(self, input):
-        with open(input, "r") as file:
-            #self.mapping = yaml.full_load(file)
-            jsonmapping = json.load(file)
+    def get_vss_mapping(self, dbc_name : str, vss_name :str) -> VSSMapping:
+        """
+        Helper method for test purposes
+        """
+        if dbc_name in self.mapping:
+            for mapping in self.mapping[dbc_name]:
+                if mapping.vss_name == vss_name:
+                    return mapping
+        return None
 
-        # Ambition, try to recreate the mapping to a big extent
+
+    def __init__(self, filename):
+        with open(filename, "r") as file:
+            try:
+                jsonmapping = json.load(file)
+                log.info(f"Reading dbc configurations from {filename}")
+            except Exception:
+                log.error(f"Failed to read json from {filename}", exc_info=True)
+                sys.exit(-1)
+
         self.traverse_vss_node("",jsonmapping)
 
-        #print(f"Collected mapping {self.mapping}")
 
     def map(self):
+        """ Get access to the map items """
         return self.mapping.items()
 
     def __contains__(self, key):

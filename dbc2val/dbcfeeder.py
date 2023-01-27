@@ -18,6 +18,10 @@
 # SPDX-License-Identifier: Apache-2.0
 ########################################################################
 
+"""
+Feeder parsing CAN data and sending to KUKSA.val
+"""
+
 import argparse
 import configparser
 import contextlib
@@ -32,14 +36,15 @@ from signal import SIGINT, SIGTERM, signal
 from typing import Any
 from typing import Dict
 
-from dbcfeederlib import canplayer
-from dbcfeederlib import dbc2vssmapper
-from dbcfeederlib import dbcreader
 import grpc
-from dbcfeederlib import j1939reader
 
 from kuksa_client import KuksaClientThread
 import kuksa_client.grpc
+
+from dbcfeederlib import canplayer
+from dbcfeederlib import dbc2vssmapper
+from dbcfeederlib import dbcreader
+from dbcfeederlib import j1939reader
 from dbcfeederlib import databroker
 
 
@@ -116,18 +121,18 @@ class Feeder:
         use_j1939=False,
         grpc_metadata=None,
     ):
-        log.debug("Use mapping: {}".format(mappingfile))
-        self._mapper = dbc2vssmapper.mapper(mappingfile)
+        log.debug("Using mapping: {}".format(mappingfile))
+        self._mapper = dbc2vssmapper.Mapper(mappingfile)
 
         if use_j1939:
-            log.info("Use J1939 reader")
+            log.info("Using J1939 reader")
             self._reader = j1939reader.J1939Reader(
                 rxqueue=self._can_queue,
                 dbcfile=dbcfile,
                 mapper=self._mapper,
             )
         else:
-            log.info("Use DBC reader")
+            log.info("Using DBC reader")
             self._reader = dbcreader.DBCReader(
                 rxqueue=self._can_queue, dbcfile=dbcfile, mapper=self._mapper
             )
@@ -232,30 +237,22 @@ class Feeder:
                         continue
             try:
                 vss_observation = self._can_queue.get(timeout=1)
-                for vss_signal in self._mapper[vss_observation.dbc_name]:
-                    if vss_signal.vss_name == vss_observation.vss_name:
-                        #print(f"Match for {vss_signal.vss_name}, observation of type {type(vss_observation.value)}")
-                        value = vss_signal.transform_value(vss_observation.value, vss_observation.time)
-                        log.debug(f"Transformed dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {vss_observation.value} to {value}")
-                        # None indicates the transform decided to not set the value
-                        if value is None:
-                            log.warning(f"Value ignored for  dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {value} of type {type(value)}")
+                value = self._mapper.transform_value(vss_observation)
+                if value is None:
+                    log.warning(f"Value ignored for  dbc {vss_observation.dbc_name} to VSS {vss_observation.vss_name}, from raw value {value} of type {type(value)}")
+                else:
+                    # get values out of the canreplay and map to desired signals
+                    target = vss_observation.vss_name
+                    log.debug("Updating DataPoint(%s, %s)", target, value)
+                    if self._server_type is ServerType.KUKSA_DATABROKER:
+                        self._provider.update_datapoint(target, value)
+                    else:
+                        resp=json.loads(kuksa.setValue(target, str(value)))
+                        if "error" in resp:
+                            if "message" in resp["error"]:
+                                log.error("Error setting {}: {}".format(target, resp["error"]["message"]))
                         else:
-                            # get values out of the canreplay and map to desired signals
-                            target = vss_observation.vss_name
-                            log.debug("Updating DataPoint(%s, %s)", target, value)
-                            if self._server_type is ServerType.KUKSA_DATABROKER:
-                                self._provider.update_datapoint(target, value)
-                            elif self._server_type is ServerType.KUKSA_VAL_SERVER:
-                                resp=json.loads(kuksa.setValue(target, str(value)))
-                                if "error" in resp:
-                                    if "message" in resp["error"]:
-                                       log.error("Error setting {}: {}".format(target, resp["error"]["message"]))
-                                    else:
-                                       log.error("Unknown error setting {}: {}".format(target, resp))
-                            else:
-                                log.error(f"Unsupported server type: {self._server_type}")
-                        break
+                            log.error("Unknown error setting {}: {}".format(target, resp))
             except kuksa_client.grpc.VSSClientError:
                 log.error("Failed to update datapoints", exc_info=True)
             except queue.Empty:
@@ -374,7 +371,7 @@ def main(argv):
     elif "general" in config and "mapping" in config["general"]:
         mappingfile = config["general"]["mapping"]
     else:
-        mappingfile = "mapping.yml"
+        mappingfile = "vss_dbc.json"
 
     if args.canport:
         canport = args.canport

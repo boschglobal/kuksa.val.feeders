@@ -35,6 +35,7 @@ class elm2canbridge:
     def __init__(self, canport, cfg, whitelist=None):
         print("Try setting up elm2can bridge")
         print("Creating virtual CAN interface")
+        # TODO: Fix next line and test
         os.system("./createelmcanvcan.sh")
 
         self.canport = canport
@@ -193,7 +194,7 @@ class elm2canbridge:
 
     #open vcan where we mirror the elmcan monitor output
     def initcan(self, cfg):
-        return can.interface.Bus(self.canport, bustype='socketcan')
+        return can.interface.Bus(self.canport, bustype='socketcan')  # pylint: disable=abstract-class-instantiated
 
     def waitforprompt(self,elm):
         while elm.read() != b'>':

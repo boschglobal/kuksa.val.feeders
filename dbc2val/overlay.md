@@ -1,30 +1,27 @@
 # Use of overlay notes
 
-Generate a json file with annotations - like this if using VSS github repo
+Generate a json file with annotations - like below if using VSS github repo
+
+
+
+```
+./vss-tools/vspec2json.py -e dbc --json-pretty --no-uuid -I ./spec ./spec/VehicleSignalSpecification.vspec -o overlay.vspec vss_dbc.json
+```
 
 (We could possibly do it from Yaml as well)
-
-
-```
-./vss-tools/vspec2json.py -e dbc --json-pretty --no-uuid -I ./spec ./spec/VehicleSignalSpecification.vspec -o overlay.vspec dbc.json
-```
-
 
 Supported scope visible in examples in [overlay.vspec](overlay.vspec)
 
 # Design decisons
 
-* By default log warnings only
+* By default log warnings only, info only minimal (like one line per signal sent)
 * On info level log short information on every signal sent to kuksa.val
 * Keep config file large/complete with short intervals
 * Add on_change functionality
 
 ## Remaining work and Open Points
 
-* What is our ambition with the default config? Would it be reasonable to change update interval to something slower to be able to follow printouts
-* What is our logging ambition
 * Instance support (depending on vss-tools)
-* Check of dbc-config when reading to give errors then instead of later
-* Testing - we need some converter unit tests, should be achievable
 * Coding styles and other things ...
+   * Logging debug and f-strings (Use lazy % formatting in logging functions?)
 

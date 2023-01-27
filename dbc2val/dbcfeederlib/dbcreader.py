@@ -104,7 +104,7 @@ class DBCReader:
                         #print(f"Found {k} with value {v} of type {type(v)}, is {type(self.mapper[k])}")
                         for signal in self.mapper[k]:
                             #print(f"Found definition for {signal.vss_name}")
-                            if signal.interval_exceeded(rxTime):
+                            if signal.condition_fulfilled(rxTime, v):
                                 log.debug(f"Queueing {signal.vss_name}, triggered by {k}, raw value {v} ")
                                 self.queue.put(dbc2vssmapper.VSSObservation(k, signal.vss_name, v, rxTime))
                             else:

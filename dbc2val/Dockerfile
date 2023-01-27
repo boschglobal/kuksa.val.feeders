@@ -11,10 +11,10 @@
 # * SPDX-License-Identifier: Apache-2.0
 # ********************************************************************************/
 
+ARG TARGETPLATFORM=linux/amd64
 # Build stage, to create a Virtual Environent
 FROM --platform=$TARGETPLATFORM python:3.9-slim-bullseye as builder
 
-ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 RUN echo "-- Running on $BUILDPLATFORM, building for $TARGETPLATFORM"
@@ -30,7 +30,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN /opt/venv/bin/python3 -m pip install --upgrade pip \
     && pip3 install --no-cache-dir -r requirements.txt
 
-RUN pip3 install wheel && pip3 install scons && pip3 install pyinstaller && pip3 install patchelf && pip3 install staticx
+RUN pip3 install wheel && pip3 install scons && pip3 install pyinstaller && pip3 install patchelf==0.17.0.0 && pip3 install staticx
 
 RUN pyinstaller --clean -F -s dbcfeeder.py
 #   --debug=imports
@@ -40,7 +40,7 @@ RUN staticx dbcfeeder dbcfeeder-exe
 
 WORKDIR /data
 COPY ./config/* ./config/
-COPY ./*.yml ./*.dbc ./candump*.log ./
+COPY ./*.json ./*.dbc ./candump*.log ./
 
 # Runner stage, to copy in the virtual environment and the app
 FROM scratch
