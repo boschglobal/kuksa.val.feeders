@@ -25,7 +25,7 @@ import os
 
 # read config only once
 path = os.path.dirname(os.path.abspath(__file__)) + "/../../vss_dbc.json"
-mapper : dbc2vssmapper.mapper = dbc2vssmapper.mapper(path)
+mapper : dbc2vssmapper.Mapper = dbc2vssmapper.Mapper(path)
 
 def test_current_gear():
     dbc_mapping = mapper["DI_gear"]

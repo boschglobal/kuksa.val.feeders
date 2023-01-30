@@ -26,7 +26,7 @@ import os
 
 # read config only once
 path = os.path.dirname(os.path.abspath(__file__)) + "/test.json"
-mapper : dbc2vssmapper.mapper = dbc2vssmapper.mapper(path)
+mapper : dbc2vssmapper.Mapper = dbc2vssmapper.Mapper(path)
 
 def test_mapping_read():
     dbc_mapping = mapper["S1"]
