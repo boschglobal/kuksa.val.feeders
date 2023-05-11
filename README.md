@@ -13,6 +13,7 @@ Name | Description
 [CSV provider](./csv_provider) | Script to replay VSS signals to `kuksa.val` databroker as defined in a CSV-file
 
 ## Pre-commit set up
+
 This repository is set up to use [pre-commit](https://pre-commit.com/) hooks.
 Use `pip install pre-commit` to install pre-commit.
 After you clone the project, run `pre-commit install` to install pre-commit into your git hooks.
